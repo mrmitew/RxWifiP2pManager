@@ -1,4 +1,4 @@
-package com.stetcho.rxwifip2pmanager.app.framework.adapter.mapper;
+package com.stetcho.rxwifip2pmanager.app.adapter.mapper;
 
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
