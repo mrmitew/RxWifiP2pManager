@@ -1,0 +1,14 @@
+bin
+gen
+dist
+.gradle
+local.properties
+.DS_Store
+.keys/
+signing/
+com_crashlytics_export_strings.xml
+crashlytics-build.properties
+build/
+.idea/*
+*.iml
+*.apk

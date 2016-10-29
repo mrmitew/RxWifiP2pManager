@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">RxWifiP2pManager</string>
+
+    <string name="device_found_1d">%1$d device(s) found</string>
+    <string name="disconnected">Disconnected</string>
+    <string name="welcome">Welcome</string>
+    <string name="pull_to_discover">Pull to discover</string>
+    <string name="connection_info">Connection info</string>
+    <string name="no_devices_found">No devices found</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="not_connected">Not connected</string>
+</resources>
