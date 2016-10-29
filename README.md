@@ -142,7 +142,7 @@ dependencies {
 
 ## Build
 ```shell
-$ git clone rxwifip2pmanager.git
+$ git clone https://github.com/mrmitew/RxWifiP2pManager.git
 $ cd rxwifip2pmanager/
 $ ./gradlew build
 ```
