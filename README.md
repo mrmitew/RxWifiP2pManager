@@ -32,7 +32,7 @@ mRxWifiP2pManager.requestPeers()
 ```
 ### Discover and request all nearby p2p peers
 ```java
-mRxWifiP2pManager.discoverAndRequestPeersList()
+mRxWifiP2pManager.discoverAndRequestPeers()
                 .timeout(5, TimeUnit.SECONDS) // Optional, but recommended
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
