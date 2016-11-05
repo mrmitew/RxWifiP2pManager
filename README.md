@@ -1,19 +1,12 @@
 RxWifiP2pManager
 ===========================
 
-An RxJava wrapper for Android's [WifiP2pManager](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager.html), allowing you to use RxJava to manage Wi-Fi peer-to-peer connectivity. 
+A library allowing you to manage Wi-Fi peer-to-peer connectivity in a reactive way. The library itself is a RxJava wrapper for Android's [WifiP2pManager](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager.html), used for discovering available peers, setup connection to peers and query for the list of peers. 
 
->This lets an application discover available peers, setup connection to peers and query for the list of peers. When a p2p connection is formed over wifi, the device continues to maintain the uplink connection over mobile or any other available network for internet connectivity on the device.
-
-*-- https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager.html*
+When a p2p connection is formed over wifi, devices continue to maintain the uplink connection over mobile or any other available network for internet connectivity. For more information, please refer to https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager.html 
 
 ## Requirements
 Min sdk is API level 14.
-
-## Communication
-* Author: Stefan Mitev
-* E-mail: mr.mitew [at] gmail . com
-* [Github issues](https://github.com/mrmitew/RxWifiP2pManager/issues)
 
 ## Some examples
 ### Instantiation of RxWifiP2pManager
@@ -147,8 +140,13 @@ $ cd rxwifip2pmanager/
 $ ./gradlew build
 ```
 
+## Communication
+* Author: Stefan Mitev
+* E-mail: mr.mitew [at] gmail . com
+* [Github issues](https://github.com/mrmitew/RxWifiP2pManager/issues)
+
 ## Bugs and Feedback
-For bugs, questions and discussions please use the Github Issues.
+For bugs, questions and discussions please use the [Github issues](https://github.com/mrmitew/RxWifiP2pManager/issues).
 
 ## Changelog
 * 1.0.0 - Initial version
