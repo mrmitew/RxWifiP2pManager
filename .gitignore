@@ -6,6 +6,7 @@ local.properties
 .DS_Store
 .keys/
 signing/
+.signing/
 com_crashlytics_export_strings.xml
 crashlytics-build.properties
 build/
