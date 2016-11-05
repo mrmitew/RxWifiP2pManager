@@ -149,7 +149,12 @@ $ ./gradlew build
 For bugs, questions and discussions please use the [Github issues](https://github.com/mrmitew/RxWifiP2pManager/issues).
 
 ## Changelog
-* 1.0.0 - Initial version
+### 1.0.1
+* Use the newest version of LeakCanary (1.5)
+* Added a custom launcher icon
+
+### 1.0.0
+* Initial version
 
 ## License
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
