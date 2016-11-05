@@ -31,6 +31,9 @@
  @butterknife.* <fields>;
 }
 
+# Retrolambda
+-dontwarn java.lang.invoke.*
+
 -keepclasseswithmembernames class * {
  @butterknife.* <methods>;
 }
