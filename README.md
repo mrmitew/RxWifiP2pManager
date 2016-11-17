@@ -80,6 +80,8 @@ Demonstrates several of the RxWifiP2pManager's APIs, including:
 * requesting/displaying connection information
 * disconnect from an existing p2p group
 
+You can either build it yourself or download it from the Google Play Store: https://play.google.com/store/apps/details?id=com.stetcho.rxwifip2pmanager.app
+
 ### Screenshots
 
 ![Welcome screen](https://github.com/mrmitew/RxWifiP2pManager/blob/master/app/design/welcome.png) ![Discovering devices](https://github.com/mrmitew/RxWifiP2pManager/blob/master/app/design/discovering.png) ![Discovered devices](https://github.com/mrmitew/RxWifiP2pManager/blob/master/app/design/discovered-devices.png)
