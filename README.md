@@ -1,4 +1,4 @@
-RxWifiP2pManager
+RxWifiP2pManager (DEPRECATED)
 ===========================
 
 A library allowing you to manage Wi-Fi peer-to-peer connectivity in a reactive way. The library itself is a RxJava wrapper for Android's [WifiP2pManager](https://developer.android.com/reference/android/net/wifi/p2p/WifiP2pManager.html), used for discovering available peers, setup connection to peers and query for the list of peers. 
