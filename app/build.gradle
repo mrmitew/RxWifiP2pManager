@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         applicationId "com.stetcho.rxwifip2pmanager.app"
-        minSdkVersion 14
+        minSdkVersion 24
         targetSdkVersion 26
         versionCode 1
         versionName "1.0.1"
