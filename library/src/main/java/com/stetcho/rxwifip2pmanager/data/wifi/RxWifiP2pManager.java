@@ -6,28 +6,25 @@ import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.WifiP2pConfig;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pDeviceList;
-import android.net.wifi.p2p.WifiP2pGroup;
 import android.net.wifi.p2p.WifiP2pInfo;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Looper;
 
 import com.stetcho.rxwifip2pmanager.domain.broadcast.BroadcastObservableManager;
 
-import rx.Completable;
-import rx.CompletableSubscriber;
-import rx.Observable;
-import rx.Single;
-import rx.SingleSubscriber;
-import rx.functions.Func0;
-import rx.functions.Func1;
+import io.reactivex.Completable;
+import io.reactivex.Observable;
+import io.reactivex.Single;
+import io.reactivex.SingleOnSubscribe;
 
 import static android.net.wifi.p2p.WifiP2pManager.BUSY;
 import static android.net.wifi.p2p.WifiP2pManager.ERROR;
 import static android.net.wifi.p2p.WifiP2pManager.P2P_UNSUPPORTED;
+import static android.net.wifi.p2p.WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION;
 
 /**
  * Created by Stefan Mitev on 01/07/2015.
- *
+ * <p>
  * Wrapper class for {@link WifiP2pManager}, using RxJava
  * ({@link "https://github.com/ReactiveX/RxJava"}).
  */
@@ -81,12 +78,8 @@ public class RxWifiP2pManager {
     public Observable<WifiP2pDevice> requestPeers() {
         return requestPeersList()
                 .toObservable()
-                .flatMap(new Func1<WifiP2pDeviceList, Observable<WifiP2pDevice>>() {
-                    @Override
-                    public Observable<WifiP2pDevice> call(final WifiP2pDeviceList deviceList) {
-                        return Observable.from(deviceList.getDeviceList());
-                    }
-                });
+                .flatMap(deviceList ->
+                        Observable.fromIterable(deviceList.getDeviceList()));
     }
 
     /**
@@ -97,26 +90,20 @@ public class RxWifiP2pManager {
      * or not
      */
     public Completable discoverPeers() {
-        return Completable.create(new Completable.OnSubscribe() {
-            @Override
-            public void call(final CompletableSubscriber subscriber) {
-                final WifiP2pManager.ActionListener discoverPeersListener =
-                        new WifiP2pManager.ActionListener() {
-                            @Override
-                            public void onSuccess() {
-                                subscriber.onCompleted();
-                            }
+        return Completable.create(emitter -> {
+            WifiP2pManager.ActionListener listener =
+                    new WifiP2pManager.ActionListener() {
+                        @Override
+                        public void onSuccess() {
+                            emitter.onComplete();
+                        }
 
-                            @Override
-                            public void onFailure(int reasonCode) {
-                                subscriber.onError(
-                                        new RuntimeException("Error: " +
-                                                getErrorString(reasonCode)));
-                            }
-                        };
-
-                mWifiP2pManager.discoverPeers(mChannel, discoverPeersListener);
-            }
+                        @Override
+                        public void onFailure(int reason) {
+                            emitter.onError(new RuntimeException(getErrorString(reason)));
+                        }
+                    };
+            mWifiP2pManager.discoverPeers(mChannel, listener);
         });
     }
 
@@ -130,28 +117,19 @@ public class RxWifiP2pManager {
      * throws an error
      */
     public Single<Void> singleDiscoverPeers() {
-        return Single.create(new Single.OnSubscribe<Void>() {
-            @Override
-            public void call(final SingleSubscriber<? super Void> subscriber) {
-                final WifiP2pManager.ActionListener discoverPeersListener =
-                        new WifiP2pManager.ActionListener() {
-                            @Override
-                            public void onSuccess() {
-                                if (!subscriber.isUnsubscribed()) {
-                                    subscriber.onSuccess(null);
-                                }
-                            }
+        return Single.create(emitter -> {
+            WifiP2pManager.ActionListener listener = new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    emitter.onSuccess(null);
+                }
 
-                            @Override
-                            public void onFailure(int reasonCode) {
-                                subscriber.onError(
-                                        new RuntimeException("Error: " +
-                                                getErrorString(reasonCode)));
-                            }
-                        };
-
-                mWifiP2pManager.discoverPeers(mChannel, discoverPeersListener);
-            }
+                @Override
+                public void onFailure(int reason) {
+                    emitter.onError(new RuntimeException(getErrorString(reason)));
+                }
+            };
+            mWifiP2pManager.discoverPeers(mChannel, listener);
         });
     }
 
@@ -166,24 +144,19 @@ public class RxWifiP2pManager {
      * @return a {@link Completable} observable that indicates completion upon successful connection
      */
     public Completable connect(final WifiP2pConfig config) {
-        return Completable.create(new Completable.OnSubscribe() {
-            @Override
-            public void call(final CompletableSubscriber subscriber) {
-                mWifiP2pManager.connect(mChannel, config,
-                        new WifiP2pManager.ActionListener() {
+        return Completable.create(emitter -> {
+            WifiP2pManager.ActionListener listener = new WifiP2pManager.ActionListener() {
+                @Override
+                public void onSuccess() {
+                    emitter.onComplete();
+                }
 
-                            @Override
-                            public void onSuccess() {
-                                subscriber.onCompleted();
-                            }
-
-                            @Override
-                            public void onFailure(int reason) {
-                                subscriber.onError(
-                                        new RuntimeException("Error: " + getErrorString(reason)));
-                            }
-                        });
-            }
+                @Override
+                public void onFailure(int reason) {
+                    emitter.onError(new RuntimeException(getErrorString(reason)));
+                }
+            };
+            mWifiP2pManager.connect(mChannel, config, listener);
         });
     }
 
@@ -197,25 +170,10 @@ public class RxWifiP2pManager {
      * @return a {@link Single} observable that emits {@link WifiP2pInfo}
      */
     public Single<WifiP2pInfo> requestConnectionInfo() {
-        return Single.defer(new Func0<Single<WifiP2pInfo>>() {
-            @Override
-            public Single<WifiP2pInfo> call() {
-                return Single.create(new Single.OnSubscribe<WifiP2pInfo>() {
-                    @Override
-                    public void call(final SingleSubscriber<? super WifiP2pInfo> subscriber) {
-                        mWifiP2pManager.requestConnectionInfo(mChannel,
-                                new WifiP2pManager.ConnectionInfoListener() {
-                                    @Override
-                                    public void onConnectionInfoAvailable(WifiP2pInfo info) {
-                                        if (!subscriber.isUnsubscribed()) {
-                                            subscriber.onSuccess(info);
-                                        }
-                                    }
-                                });
-                    }
-                });
-            }
-        });
+        return Single.defer(() -> Single.create(emitter -> {
+            WifiP2pManager.ConnectionInfoListener listener = emitter::onSuccess;
+            mWifiP2pManager.requestConnectionInfo(mChannel, listener);
+        }));
     }
 
     /**
@@ -224,26 +182,10 @@ public class RxWifiP2pManager {
      * @return a {@link Observable} that emits {@link WifiP2pDeviceList}
      */
     public Single<WifiP2pDeviceList> requestPeersList() {
-        return Single.defer(new Func0<Single<WifiP2pDeviceList>>() {
-            @Override
-            public Single<WifiP2pDeviceList> call() {
-                return Single.create(new Single.OnSubscribe<WifiP2pDeviceList>() {
-                    @Override
-                    public void call(final SingleSubscriber<? super WifiP2pDeviceList> subscriber) {
-                        WifiP2pManager.PeerListListener listener =
-                                new WifiP2pManager.PeerListListener() {
-                                    @Override
-                                    public void onPeersAvailable(WifiP2pDeviceList peers) {
-                                        if (!subscriber.isUnsubscribed()) {
-                                            subscriber.onSuccess(peers);
-                                        }
-                                    }
-                                };
-                        mWifiP2pManager.requestPeers(mChannel, listener);
-                    }
-                });
-            }
-        });
+        return Single.defer(() -> Single.create((SingleOnSubscribe<WifiP2pDeviceList>) emitter -> {
+            WifiP2pManager.PeerListListener listener = emitter::onSuccess;
+            mWifiP2pManager.requestPeers(mChannel, listener);
+        }));
     }
 
     /**
@@ -252,19 +194,10 @@ public class RxWifiP2pManager {
      * @return a {@link Single} observable that emits a list with all discovered nearby devices
      */
     public Single<WifiP2pDeviceList> discoverAndRequestPeersList() {
-        return Single.defer(new Func0<Single<WifiP2pDeviceList>>() {
-            @Override
-            public Single<WifiP2pDeviceList> call() {
-                return singleDiscoverPeers()
-                        .compose(listenForNewPeersTransformer())
-                        .flatMap(new Func1<Intent, Single<WifiP2pDeviceList>>() {
-                            @Override
-                            public Single<WifiP2pDeviceList> call(final Intent intent) {
-                                return requestPeersList();
-                            }
-                        });
-            }
-        });
+        return Single.defer(() ->
+                singleDiscoverPeers()
+                        .compose(this::listenForNewPeers)
+                        .flatMap(intent -> requestPeersList()));
     }
 
     /**
@@ -276,12 +209,7 @@ public class RxWifiP2pManager {
     public Observable<WifiP2pDevice> discoverAndRequestPeers() {
         return discoverAndRequestPeersList()
                 .toObservable()
-                .flatMap(new Func1<WifiP2pDeviceList, Observable<WifiP2pDevice>>() {
-                    @Override
-                    public Observable<WifiP2pDevice> call(final WifiP2pDeviceList p2pDeviceList) {
-                        return Observable.from(p2pDeviceList.getDeviceList());
-                    }
-                });
+                .flatMap(deviceList -> Observable.fromIterable(deviceList.getDeviceList()));
     }
 
     /**
@@ -292,34 +220,12 @@ public class RxWifiP2pManager {
      * @return a {@link Single} observable that emits the intent which indicated that p2p peers
      * changed
      */
-    private Single.Transformer<Void, Intent> listenForNewPeersTransformer() {
-        return new Single.Transformer<Void, Intent>() {
-            @Override
-            public Single<Intent> call(final Single<Void> voidSingle) {
-                return voidSingle.flatMap(new Func1<Void, Single<Intent>>() {
-                    @Override
-                    public Single<Intent> call(final Void aVoid) {
-                        return mIntentObservableFactory
-                                .create()
-                                .getBroadcastObservable()
-                                .filter(new Func1<Intent, Boolean>() {
-                                    @Override
-                                    public Boolean call(Intent intent) {
-                                        if (intent == null) {
-                                            return false;
-                                        }
-                                        // Filter the intents by action as we are interested only in
-                                        // WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION
-                                        return intent.getAction().equals(
-                                                WifiP2pManager.WIFI_P2P_PEERS_CHANGED_ACTION);
-                                    }
-                                })
-                                .take(1) // Sometimes we get two broadcasts, so let's emit only one.
-                                .toSingle();
-                    }
-                });
-            }
-        };
+    private Single<Intent> listenForNewPeers(Single<Void> voidSingle) {
+        return voidSingle.flatMap(aVoid -> mIntentObservableFactory
+                .create()
+                .getBroadcastObservable()
+                .filter(intent -> intent != null && intent.getAction().equals(WIFI_P2P_PEERS_CHANGED_ACTION))
+                .firstOrError());
     }
 
     /**
@@ -330,30 +236,22 @@ public class RxWifiP2pManager {
      * {@link WifiP2pManager.Channel} was successful or not
      */
     public Completable disconnect() {
-        return Completable.create(new Completable.OnSubscribe() {
-            @Override
-            public void call(final CompletableSubscriber subscriber) {
-                mWifiP2pManager.requestGroupInfo(mChannel, new WifiP2pManager.GroupInfoListener() {
+        return Completable.create(emitter -> mWifiP2pManager.requestGroupInfo(mChannel, group -> {
+            if (group != null && group.isGroupOwner()) {
+                mWifiP2pManager.removeGroup(mChannel, new WifiP2pManager.ActionListener() {
                     @Override
-                    public void onGroupInfoAvailable(WifiP2pGroup group) {
-                        if (group != null && group.isGroupOwner()) {
-                            mWifiP2pManager.removeGroup(mChannel, new WifiP2pManager.ActionListener() {
-                                @Override
-                                public void onSuccess() {
-                                    subscriber.onCompleted();
-                                }
+                    public void onSuccess() {
+                        emitter.onComplete();
+                    }
 
-                                @Override
-                                public void onFailure(int reason) {
-                                    subscriber.onError(new RuntimeException("Error: " +
-                                            getErrorString(reason)));
-                                }
-                            });
-                        }
+                    @Override
+                    public void onFailure(int reason) {
+                        emitter.onError(
+                                new RuntimeException(getErrorString(reason)));
                     }
                 });
             }
-        });
+        }));
     }
 
     /**
