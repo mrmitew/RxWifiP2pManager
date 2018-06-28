@@ -34,6 +34,14 @@ public class RxWifiP2pManager {
     private final BroadcastObservableManager.Factory mIntentObservableFactory;
 
     /**
+     * In RxJava 2.x null values are not supported, this enum can be returned instead
+     * ({@link "https://github.com/ReactiveX/RxJava/wiki/What's-different-in-2.0#nulls"})
+     */
+    enum RxJava2Compat {
+        VOID
+    }
+
+    /**
      * Returns the class provides the API for managing Wi-Fi peer-to-peer connectivity.
      *
      * @return {@link WifiP2pManager}
@@ -116,12 +124,12 @@ public class RxWifiP2pManager {
      * @return a {@link Single} observable that emits a null value for successful discovery, or
      * throws an error
      */
-    public Single<Void> singleDiscoverPeers() {
+    public Single<Object> singleDiscoverPeers() {
         return Single.create(emitter -> {
             WifiP2pManager.ActionListener listener = new WifiP2pManager.ActionListener() {
                 @Override
                 public void onSuccess() {
-                    emitter.onSuccess(null);
+                    emitter.onSuccess(RxJava2Compat.VOID);
                 }
 
                 @Override
@@ -220,7 +228,7 @@ public class RxWifiP2pManager {
      * @return a {@link Single} observable that emits the intent which indicated that p2p peers
      * changed
      */
-    private Single<Intent> listenForNewPeers(Single<Void> voidSingle) {
+    private Single<Intent> listenForNewPeers(Single<Object> voidSingle) {
         return voidSingle.flatMap(aVoid -> mIntentObservableFactory
                 .create()
                 .getBroadcastObservable()

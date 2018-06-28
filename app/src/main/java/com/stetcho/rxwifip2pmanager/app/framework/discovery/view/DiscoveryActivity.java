@@ -1,10 +1,13 @@
 package com.stetcho.rxwifip2pmanager.app.framework.discovery.view;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.net.wifi.WpsInfo;
 import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -45,6 +48,7 @@ import io.reactivex.schedulers.Schedulers;
 public class DiscoveryActivity extends AppCompatActivity
         implements SwipeRefreshLayout.OnRefreshListener {
     private static final String TAG = DiscoveryActivity.class.getSimpleName();
+    private static final int ACCESS_LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     /*
      * Views
@@ -127,6 +131,17 @@ public class DiscoveryActivity extends AppCompatActivity
         mSwipeRefreshLayout.setColorSchemeResources(R.color.colorAccent);
     }
 
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == ACCESS_LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                performOnRefresh();
+            } else {
+                stopDiscoveringUi();
+            }
+        }
+    }
+
     private void setWelcomeScreen() {
         mDeviceListAdapter.clearData();
         mTvTitle.setText(R.string.welcome);
@@ -174,6 +189,17 @@ public class DiscoveryActivity extends AppCompatActivity
 
     @Override
     public void onRefresh() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    ACCESS_LOCATION_PERMISSION_REQUEST_CODE);
+            return;
+        }
+
+        performOnRefresh();
+    }
+
+    private void performOnRefresh() {
         mDiscoverPeersSubscription = mRxWifiP2pManager.discoverAndRequestPeersList()
                 .timeout(5, TimeUnit.SECONDS)
                 .subscribeOn(Schedulers.computation())

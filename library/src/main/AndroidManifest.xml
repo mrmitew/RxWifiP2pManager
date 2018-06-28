@@ -7,6 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Permission needed for nearby peer discovery, @see https://github.com/sabzo/ayanda/issues/17 -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+
+    <!-- Used for Play Store filtering -->
     <uses-feature
         android:name="android.hardware.wifi.direct"
         android:required="true" />
