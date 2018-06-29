@@ -1,9 +1,13 @@
 package com.stetcho.rxwifip2pmanager.app.framework.discovery.view;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.net.wifi.WpsInfo;
+import android.net.wifi.p2p.WifiP2pDevice;
 import android.net.wifi.p2p.WifiP2pManager;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
@@ -16,8 +20,6 @@ import android.widget.TextView;
 import com.pixplicity.sharp.Sharp;
 import com.stetcho.rxwifip2pmanager.app.R;
 import com.stetcho.rxwifip2pmanager.app.domain.discovery.model.DeviceModel;
-import com.stetcho.rxwifip2pmanager.app.adapter.mapper.DeviceModelMapper;
-import com.stetcho.rxwifip2pmanager.app.adapter.mapper.WifiP2pSingleDeviceMapper;
 import com.stetcho.rxwifip2pmanager.app.framework.discovery.data.DeviceListAdapter;
 import com.stetcho.rxwifip2pmanager.data.wifi.RxWifiP2pManager;
 import com.stetcho.rxwifip2pmanager.data.wifi.broadcast.factory.WifiP2pBroadcastObservableManagerFactory;
@@ -26,16 +28,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
 import butterknife.OnClick;
 import butterknife.OnItemClick;
-import rx.Single;
-import rx.Subscriber;
-import rx.Subscription;
-import rx.android.schedulers.AndroidSchedulers;
-import rx.schedulers.Schedulers;
+import io.reactivex.Single;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
 
 /**
  * Created by Stefan Mitev on 01/07/2015.
@@ -46,104 +48,7 @@ import rx.schedulers.Schedulers;
 public class DiscoveryActivity extends AppCompatActivity
         implements SwipeRefreshLayout.OnRefreshListener {
     private static final String TAG = DiscoveryActivity.class.getSimpleName();
-
-    /**
-     * Default implementation of {@link Subscriber<T>} in order to avoid adding unnecessary methods
-     * to our custom subscribers
-     *
-     * @param <T>
-     */
-    private class DefaultSubscriber<T> extends Subscriber<T> {
-        @Override
-        public void onCompleted() {
-        }
-
-        @Override
-        public void onError(final Throwable e) {
-            // Oops, something went wrong here..
-            e.printStackTrace();
-        }
-
-        @Override
-        public void onNext(final T t) {
-        }
-    }
-
-    /**
-     * Subscriber for when we are initiating a new peer discovery
-     */
-    private class DiscoverPeersSubscription extends DefaultSubscriber<List<DeviceModel>> {
-        @Override
-        public void onNext(final List<DeviceModel> deviceList) {
-            // We got a list with nearby p2p devices
-
-            // Stop refreshing
-            stopDiscoveringUi();
-
-            // Change the screen state
-            setFoundNewDevicesScreen(deviceList);
-        }
-
-        @Override
-        public void onError(final Throwable e) {
-            if (e instanceof TimeoutException) {
-                // No devices were found, or the discovery took too long time
-
-                // Stop refreshing
-                stopDiscoveringUi();
-
-                setNoDevicesFoundScreen();
-            } else {
-                // Ooops, something went wrong here
-                e.printStackTrace();
-            }
-        }
-    }
-
-    /**
-     * Subscriber for when we are trying to connect to a nearby Wi-Fi device
-     */
-    private class ConnectToDeviceSubscriber extends DefaultSubscriber<DeviceModel> {
-        private final DeviceModel mDeviceModel;
-
-        ConnectToDeviceSubscriber(DeviceModel deviceModel) {
-            mDeviceModel = deviceModel;
-        }
-
-        @Override
-        public void onCompleted() {
-            // Change screen state
-            setConnectedToDeviceScreen(mDeviceModel);
-        }
-    }
-
-    /**
-     * Subscriber for when we are disconnecting from an existing p2p group
-     */
-    private class DisconnectFromDeviceSubscriber extends DefaultSubscriber<DeviceModel> {
-        @Override
-        public void onCompleted() {
-            // Change screen state. Restore to the default - welcome screen.
-            setWelcomeScreen();
-            Snackbar.make(mSwipeRefreshLayout, R.string.disconnected, Snackbar.LENGTH_SHORT).show();
-        }
-    }
-
-    /**
-     * Subscriber for when we check if we are already connected to a device
-     */
-    private class ConnectedToDeviceSubscriber extends DefaultSubscriber<DeviceModel> {
-        @Override
-        public void onNext(final DeviceModel device) {
-            if (device != null) {
-                // We got the information for the device we are connected to
-                setConnectedToDeviceScreen(device);
-            } else {
-                Snackbar.make(mSwipeRefreshLayout, R.string.unknown_error, Snackbar.LENGTH_SHORT)
-                        .show();
-            }
-        }
-    }
+    private static final int ACCESS_LOCATION_PERMISSION_REQUEST_CODE = 1;
 
     /*
      * Views
@@ -181,10 +86,10 @@ public class DiscoveryActivity extends AppCompatActivity
     protected DeviceListAdapter mDeviceListAdapter;
 
     /*
-     * Subscriptions
+     * Disposable
      */
-    private Subscription mRequestConnectionInfoSubscription;
-    private Subscription mDiscoverPeersSubscription;
+    private Disposable mRequestConnectionInfoSubscription;
+    private Disposable mDiscoverPeersSubscription;
 
     /*
      * Other instance variables
@@ -210,12 +115,31 @@ public class DiscoveryActivity extends AppCompatActivity
         getConnectedToDeviceObservable()
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new ConnectedToDeviceSubscriber());
+                .subscribe(deviceModel -> {
+                    if (deviceModel != null) {
+                        // We got the information for the device we are connected to
+                        setConnectedToDeviceScreen(deviceModel);
+                    } else {
+                        Snackbar.make(mSwipeRefreshLayout, R.string.unknown_error, Snackbar.LENGTH_SHORT)
+                                .show();
+                    }
+                }, Throwable::printStackTrace);
 
         mSwipeRefreshLayout.setOnRefreshListener(this);
 
         // Configure the refreshing colors
         mSwipeRefreshLayout.setColorSchemeResources(R.color.colorAccent);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == ACCESS_LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                performOnRefresh();
+            } else {
+                stopDiscoveringUi();
+            }
+        }
     }
 
     private void setWelcomeScreen() {
@@ -265,12 +189,45 @@ public class DiscoveryActivity extends AppCompatActivity
 
     @Override
     public void onRefresh() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
+                    ACCESS_LOCATION_PERMISSION_REQUEST_CODE);
+            return;
+        }
+
+        performOnRefresh();
+    }
+
+    private void performOnRefresh() {
         mDiscoverPeersSubscription = mRxWifiP2pManager.discoverAndRequestPeersList()
                 .timeout(5, TimeUnit.SECONDS)
-                .map(new DeviceModelMapper())
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new DiscoverPeersSubscription());
+                .map(deviceList -> deviceList.getDeviceList().stream()
+                        .map(device -> new DeviceModel(device.deviceName, device.deviceAddress))
+                        .collect(Collectors.toList()))
+                .subscribe(deviceModels -> {
+                    // We got a list with nearby p2p devices
+
+                    // Stop refreshing
+                    stopDiscoveringUi();
+
+                    // Change the screen state
+                    setFoundNewDevicesScreen(deviceModels);
+                }, e -> {
+                    if (e instanceof TimeoutException) {
+                        // No devices were found, or the discovery took too long time
+
+                        // Stop refreshing
+                        stopDiscoveringUi();
+
+                        setNoDevicesFoundScreen();
+                    } else {
+                        // Ooops, something went wrong here
+                        e.printStackTrace();
+                    }
+                });
     }
 
     @OnItemClick(R.id.lv_devices)
@@ -280,7 +237,10 @@ public class DiscoveryActivity extends AppCompatActivity
                 .connect(mRxWifiP2pManager.createConfig(deviceModel.getAddress(), WpsInfo.PBC))
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new ConnectToDeviceSubscriber(deviceModel));
+                .subscribe(() -> {
+                    // Change screen state
+                    setConnectedToDeviceScreen(deviceModel);
+                });
     }
 
     @OnClick(R.id.btn_disconnect)
@@ -288,7 +248,11 @@ public class DiscoveryActivity extends AppCompatActivity
         mRxWifiP2pManager.disconnect()
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new DisconnectFromDeviceSubscriber());
+                .subscribe(() -> {
+                    // Change screen state. Restore to the default - welcome screen.
+                    setWelcomeScreen();
+                    Snackbar.make(mSwipeRefreshLayout, R.string.disconnected, Snackbar.LENGTH_SHORT).show();
+                });
     }
 
     @OnClick(R.id.btn_request_connection_info)
@@ -301,41 +265,34 @@ public class DiscoveryActivity extends AppCompatActivity
 
     private Single<DeviceModel> getConnectedToDeviceObservable() {
         return mRxWifiP2pManager.requestConnectionInfo()
-                .flatMap(wifiP2pInfo -> {
+                .flatMap(wifiP2pInfo -> Single.create(emitter -> {
                     if (wifiP2pInfo == null || wifiP2pInfo.groupOwnerAddress == null) {
-                        return Single.error(
-                                new RuntimeException(getString(R.string.not_connected)));
+                        emitter.onError(new RuntimeException("Not connected"));
+                    } else {
+                        WifiP2pDevice device = mRxWifiP2pManager.requestPeers().blockingFirst();
+                        emitter.onSuccess(new DeviceModel(device.deviceName, device.deviceAddress));
                     }
-
-                    // Seems like we are connected, let's request the list with peers
-                    return mRxWifiP2pManager.requestPeersList()
-                            // Now map the output to produce Single<WifiP2pDevice>
-                            // FIXME: Support for only one device.
-                            // Its for simplicity, but kinda ugly.
-                            .flatMap(new WifiP2pSingleDeviceMapper());
-                })
-                // Map the output to produce a DeviceModel
-                .map(new DeviceModelMapper.Single());
+                }));
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        safeUnsubscribe();
+        safeDispose();
     }
 
     private void stopDiscoveringUi() {
         mSwipeRefreshLayout.setRefreshing(false);
     }
 
-    private void safeUnsubscribe() {
-        safeUnsubscribe(mDiscoverPeersSubscription);
-        safeUnsubscribe(mRequestConnectionInfoSubscription);
+    private void safeDispose() {
+        safeDispose(mDiscoverPeersSubscription);
+        safeDispose(mRequestConnectionInfoSubscription);
     }
 
-    private void safeUnsubscribe(Subscription subscription) {
-        if (subscription != null && !subscription.isUnsubscribed()) {
-            subscription.unsubscribe();
+    private void safeDispose(Disposable disposable) {
+        if (disposable != null && !disposable.isDisposed()) {
+            disposable.dispose();
         }
     }
 }

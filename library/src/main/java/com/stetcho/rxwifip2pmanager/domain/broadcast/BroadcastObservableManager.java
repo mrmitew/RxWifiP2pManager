@@ -2,11 +2,10 @@ package com.stetcho.rxwifip2pmanager.domain.broadcast;
 
 import android.content.Intent;
 
-import rx.Observable;
-
+import io.reactivex.Observable;
 /**
  * Created by Stefan Mitev on 01/07/2015.
- *
+ * <p>
  * Interface for working with {@link Observable} that emits {@link Intent}s when a broadcast
  * receiver receives and event.
  */
@@ -17,5 +16,6 @@ public interface BroadcastObservableManager {
     interface Factory {
         BroadcastObservableManager create();
     }
+
     Observable<Intent> getBroadcastObservable();
 }
